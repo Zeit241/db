@@ -84,62 +84,88 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="UI\AdminDashboard.cs">
+    <Compile Include="Models\Doctor.cs" />
+    <Compile Include="Models\Patient.cs" />
+    <Compile Include="UserInterface\AdminDashboard.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\AdminDashboard.Designer.cs">
+    <Compile Include="UserInterface\AdminDashboard.Designer.cs">
       <DependentUpon>AdminDashboard.cs</DependentUpon>
     </Compile>
-    <Compile Include="DB\DatabaseManager.cs" />
-    <Compile Include="UI\DoctorCard.cs">
+    <Compile Include="Database\DatabaseManager.cs" />
+    <Compile Include="UserInterface\DoctorCard.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\DoctorCard.Designer.cs">
+    <Compile Include="UserInterface\DoctorCard.Designer.cs">
       <DependentUpon>DoctorCard.cs</DependentUpon>
     </Compile>
-    <Compile Include="UI\DoctorPage.cs">
+    <Compile Include="UserInterface\DoctorPage.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\DoctorPage.Designer.cs">
+    <Compile Include="UserInterface\DoctorPage.Designer.cs">
       <DependentUpon>DoctorPage.cs</DependentUpon>
     </Compile>
-    <Compile Include="UI\LoginPage.cs">
+    <Compile Include="UserInterface\DoctorScheduleForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\LoginPage.Designer.cs">
+    <Compile Include="UserInterface\DoctorScheduleForm.Designer.cs">
+      <DependentUpon>DoctorScheduleForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserInterface\LoginPage.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\LoginPage.Designer.cs">
       <DependentUpon>LoginPage.cs</DependentUpon>
     </Compile>
-    <Compile Include="UI\RegPage.cs">
+    <Compile Include="UserInterface\PatientAppointments.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\RegPage.Designer.cs">
+    <Compile Include="UserInterface\PatientAppointments.Designer.cs">
+      <DependentUpon>PatientAppointments.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserInterface\PatientCard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\PatientCard.Designer.cs">
+      <DependentUpon>PatientCard.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserInterface\RegPage.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\RegPage.Designer.cs">
       <DependentUpon>RegPage.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="UI\Schuedle.cs">
+    <Compile Include="UserInterface\Schuedle.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\Schuedle.Designer.cs">
+    <Compile Include="UserInterface\Schuedle.Designer.cs">
       <DependentUpon>Schuedle.cs</DependentUpon>
     </Compile>
-    <Compile Include="UI\UserDashboard.cs">
+    <Compile Include="UserInterface\UserAccountForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="UI\UserDashboard.Designer.cs">
+    <Compile Include="UserInterface\UserAccountForm.Designer.cs">
+      <DependentUpon>UserAccountForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserInterface\UserDashboard.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\UserDashboard.Designer.cs">
       <DependentUpon>UserDashboard.cs</DependentUpon>
     </Compile>
     <Compile Include="Utils\UserSession.cs" />
-    <EmbeddedResource Include="UI\AdminDashboard.resx">
+    <EmbeddedResource Include="UserInterface\AdminDashboard.resx">
       <DependentUpon>AdminDashboard.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UI\DoctorCard.resx">
+    <EmbeddedResource Include="UserInterface\DoctorCard.resx">
       <DependentUpon>DoctorCard.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UI\LoginPage.resx">
+    <EmbeddedResource Include="UserInterface\LoginPage.resx">
       <DependentUpon>LoginPage.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="UI\RegPage.resx">
+    <EmbeddedResource Include="UserInterface\RegPage.resx">
       <DependentUpon>RegPage.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">

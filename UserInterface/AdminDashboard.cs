@@ -4,6 +4,7 @@ using System.Drawing;
 using DatabaseCursovaya;
 using System.Data;
 using DatabaseCursovaya.UI;
+using System.Linq;
 
 namespace WindowsFormsApp1
 {
@@ -11,7 +12,8 @@ namespace WindowsFormsApp1
     {
         private readonly DatabaseManager _dbManager;
 
-        private TextBox _searchBox;
+        private TextBox _doctorsSearchBox;
+        private TextBox _patientsSearchBox;
 
         private DataGridView _doctorsGrid;
         private DataGridView _patientsGrid;
@@ -47,33 +49,78 @@ namespace WindowsFormsApp1
 
         private void InitializeDoctorsTab(TabPage tab)
         {
+            _doctorsSearchBox = new TextBox
+            {
+                Width = 200,
+                Location = new Point(580, 5),
+            };
+            _doctorsSearchBox.TextChanged += (s, e) => SearchBox_TextChanged(s, e, true);
+
             // Создаем панели
-            var doctorsButtonPanel = new Panel
+            Panel doctorsButtonPanel = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 40,
                 Padding = new Padding(5)
             };
 
-            var searchPanel = new Panel
+            // Создаем и настраиваем кнопки
+            Button addButton = new Button
             {
-                Dock = DockStyle.Top,
-                Height = 40
+                Text = "Добавить",
+                Width = 100,
+                Height = 30,
+                Location = new Point(5, 5)
             };
 
-            // Создаем и настраиваем кнопки
-            var addButton = new Button { Text = "Добавить" };
-            var editButton = new Button { Text = "Редактировать" };
-            var deleteButton = new Button { Text = "Удалить" };
-            var scheduleButton = new Button { Text = "Расписание" };
+            Button editButton = new Button
+            {
+                Text = "Редактировать",
+                Width = 100,
+                Height = 30,
+                Location = new Point(110, 5)
+            };
 
-            // Привязываем обработчики к существующим методам
+            Button deleteButton = new Button
+            {
+                Text = "Удалить",
+                Width = 100,
+                Height = 30,
+                Location = new Point(215, 5)
+            };
+
+            Button scheduleButton = new Button
+            {
+                Text = "Расписание",
+                Width = 100,
+                Height = 30,
+                Location = new Point(320, 5)
+            };
+
+            Button manageAccountButton = new Button
+            {
+                Text = "Управление аккаунтом",
+                Width = 140,
+                Height = 30,
+                Location = new Point(425, 5)
+            };
+
+            manageAccountButton.Click += BtnManageAccount_Click;
+
+            // Привязываем обработчики
             addButton.Click += BtnCreate_Click;
             editButton.Click += BtnEdit_Click;
             deleteButton.Click += BtnDelete_Click;
             scheduleButton.Click += BtnSchedule_Click;
 
-            doctorsButtonPanel.Controls.AddRange(new Control[] { addButton, editButton, deleteButton, scheduleButton });
+            // Добавляем кнопки на панель
+            doctorsButtonPanel.Controls.AddRange(new Control[] {
+                addButton,
+                editButton,
+                deleteButton,
+                scheduleButton,
+                manageAccountButton
+            });
 
             // Настройка таблицы докторов
             _doctorsGrid = new DataGridView
@@ -88,39 +135,83 @@ namespace WindowsFormsApp1
 
             // Добавляем элементы управления на вкладку
             tab.Controls.Add(_doctorsGrid);
-            tab.Controls.Add(searchPanel);
+            tab.Controls.Add(_doctorsSearchBox);
             tab.Controls.Add(doctorsButtonPanel);
         }
 
         private void InitializePatientsTab(TabPage tab)
         {
+            _patientsSearchBox = new TextBox
+            {
+                Width = 200,
+                Location = new Point(580, 5),
+            };
+            _patientsSearchBox.TextChanged += (s, e) => SearchBox_TextChanged(s, e, false);
+
             // Создаем панели
-            var patientsButtonPanel = new Panel
+            Panel patientsButtonPanel = new Panel
             {
                 Dock = DockStyle.Top,
                 Height = 40,
                 Padding = new Padding(5)
             };
 
-            var searchPanel = new Panel
+            // Создаем и настраиваем кнопки
+            Button addButton = new Button
             {
-                Dock = DockStyle.Top,
-                Height = 40
+                Text = "Добавить",
+                Width = 100,
+                Height = 30,
+                Location = new Point(5, 5)
             };
 
-            // Создаем и настраиваем кнопки
-            var addButton = new Button { Text = "Добавить" };
-            var editButton = new Button { Text = "Редактировать" };
-            var deleteButton = new Button { Text = "Удалить" };
-            var appointmentsButton = new Button { Text = "Приемы" };
+            Button editButton = new Button
+            {
+                Text = "Редактировать",
+                Width = 100,
+                Height = 30,
+                Location = new Point(110, 5)
+            };
+
+            Button deleteButton = new Button
+            {
+                Text = "Удалить",
+                Width = 100,
+                Height = 30,
+                Location = new Point(215, 5)
+            };
+
+            Button appointmentsButton = new Button
+            {
+                Text = "Приемы",
+                Width = 100,
+                Height = 30,
+                Location = new Point(320, 5)
+            };
+
+            Button manageAccountButton = new Button
+            {
+                Text = "Управление аккаунтом",
+                Width = 140,
+                Height = 30,
+                Location = new Point(425, 5)
+            };
 
             // Привязываем обработчики
             addButton.Click += BtnCreatePatient_Click;
             editButton.Click += BtnEditPatient_Click;
             deleteButton.Click += BtnDeletePatient_Click;
             appointmentsButton.Click += BtnPatientAppointments_Click;
+            manageAccountButton.Click += BtnManagePatientAccount_Click;
 
-            patientsButtonPanel.Controls.AddRange(new Control[] { addButton, editButton, deleteButton, appointmentsButton });
+            // Добавляем кнопки на панель
+            patientsButtonPanel.Controls.AddRange(new Control[] {
+                addButton,
+                editButton,
+                deleteButton,
+                appointmentsButton,
+                manageAccountButton
+            });
 
             // Настройка таблицы пациентов
             _patientsGrid = new DataGridView
@@ -135,31 +226,16 @@ namespace WindowsFormsApp1
 
             // Добавляем элементы управления на вкладку
             tab.Controls.Add(_patientsGrid);
-            tab.Controls.Add(searchPanel);
+            tab.Controls.Add(_patientsSearchBox);
             tab.Controls.Add(patientsButtonPanel);
         }
 
         private void InitializeComponents()
         {
-            tabControl1.TabIndexChanged += (s, args) =>
+            tabControl1.SelectedIndexChanged += (s, args) =>
             {
-                this._currentTab = tabControl1.TabIndex;
+                this._currentTab = tabControl1.SelectedIndex;
             };
-
-            // Создаем вкладку для докторов
-            TabPage doctorsTab = tabControl1.TabPages[0];
-            TabPage patientsTab = tabControl1.TabPages[1];
-            // Создаем панель для поиска
-
-            // Создаем поле поиска
-            _searchBox = new TextBox
-            {
-                Width = 200,
-                Location = new Point(580, 5),
-
-            };
-            _searchBox.TextChanged += SearchBox_TextChanged;
-
 
             // Инициализация вкладок
             InitializeDoctorsTab(tabControl1.TabPages[0]);
@@ -175,14 +251,32 @@ namespace WindowsFormsApp1
         private void LoadPatients()
         {
             _originalPatientsData = _dbManager.GetAllPatients();
-            _patientsGrid.DataSource = _originalDoctorsData;
+            _patientsGrid.DataSource = _originalPatientsData;
+
+            // Настраиваем отображение столбцов
+            if (_patientsGrid.Columns.Count > 0)
+            {
+                _patientsGrid.Columns["patient_id"].HeaderText = "ID";
+                _patientsGrid.Columns["first_name"].HeaderText = "Имя";
+                _patientsGrid.Columns["last_name"].HeaderText = "Фамилия";
+                _patientsGrid.Columns["patronymic"].HeaderText = "Отчество";
+                _patientsGrid.Columns["birth_date"].HeaderText = "Дата рождения";
+                _patientsGrid.Columns["address"].HeaderText = "Адресс";
+                _patientsGrid.Columns["phone_number"].HeaderText = "Телефон";
+                _patientsGrid.Columns["email"].HeaderText = "Email";
+                _patientsGrid.Columns["gender"].HeaderText = "Пол";
+
+                // Скрываем столбец с фото, если он есть
+                if (_patientsGrid.Columns.Contains("photo"))
+                    _patientsGrid.Columns["photo"].Visible = false;
+            }
         }
 
-        private void SearchBox_TextChanged(object sender, EventArgs e)
+        private void SearchBox_TextChanged(object sender, EventArgs e, bool isDoctorsTab)
         {
-            string searchText = _searchBox.Text.ToLower();
+            string searchText = ((TextBox)sender).Text.ToLower();
 
-            if (_currentTab == 0)
+            if (isDoctorsTab)
             {
                 if (string.IsNullOrWhiteSpace(searchText))
                 {
@@ -190,29 +284,15 @@ namespace WindowsFormsApp1
                     return;
                 }
 
-                // Создаем отфильтрованную таблицу
                 DataTable filteredTable = _originalDoctorsData.Clone();
                 foreach (DataRow row in _originalDoctorsData.Rows)
                 {
-                    bool found = false;
-                    foreach (DataColumn col in _originalDoctorsData.Columns)
-                    {
-                        if (row[col] != null && row[col].ToString().ToLower().Contains(searchText))
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found)
-                    {
+                    if (RowContainsText(row, searchText))
                         filteredTable.ImportRow(row);
-                    }
                 }
-
                 _doctorsGrid.DataSource = filteredTable;
             }
-
-            if (_currentTab == 1)
+            else
             {
                 if (string.IsNullOrWhiteSpace(searchText))
                 {
@@ -220,30 +300,20 @@ namespace WindowsFormsApp1
                     return;
                 }
 
-                // Создаем отфильтрованную таблицу
                 DataTable filteredTable = _originalPatientsData.Clone();
                 foreach (DataRow row in _originalPatientsData.Rows)
                 {
-                    bool found = false;
-                    foreach (DataColumn col in _originalPatientsData.Columns)
-                    {
-                        if (row[col] != null && row[col].ToString().ToLower().Contains(searchText))
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found)
-                    {
+                    if (RowContainsText(row, searchText))
                         filteredTable.ImportRow(row);
-                    }
                 }
-
                 _patientsGrid.DataSource = filteredTable;
             }
+        }
 
-
-
+        private bool RowContainsText(DataRow row, string searchText)
+        {
+            return row.ItemArray.Any(field =>
+                field != null && field.ToString().ToLower().Contains(searchText));
         }
 
         private void BtnDelete_Click(object sender, EventArgs e)
@@ -328,13 +398,14 @@ namespace WindowsFormsApp1
         {
             if (_patientsGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите пациента для удаления", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Выберите пациента для удаления", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             var row = _patientsGrid.SelectedRows[0];
-            int patientId = Convert.ToInt32(row.Cells["ID"].Value);
-            string patientName = $"{row.Cells["Фамилия"].Value} {row.Cells["Имя"].Value}";
+            int patientId = Convert.ToInt32(row.Cells["patient_id"].Value);
+            string patientName = $"{row.Cells["last_name"].Value} {row.Cells["first_name"].Value}";
 
             if (MessageBox.Show($"Вы действительно хотите удалить пациента {patientName}?",
                              "Подтверждение",
@@ -343,12 +414,14 @@ namespace WindowsFormsApp1
             {
                 if (_dbManager.DeletePatient(patientId))
                 {
-                    MessageBox.Show("Пациент успешно удален", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Пациент успешно удален", "Успех",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadPatients();
                 }
                 else
                 {
-                    MessageBox.Show("Ошибка при удалении пациента", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Ошибка при удалении пациента", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -357,12 +430,13 @@ namespace WindowsFormsApp1
         {
             if (_patientsGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите пациента для редактирования", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Выберите пациента для редактирования", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             var row = _patientsGrid.SelectedRows[0];
-            int patientId = Convert.ToInt32(row.Cells["ID"].Value);
+            int patientId = Convert.ToInt32(row.Cells["patient_id"].Value);
 
             using (var patientCard = new PatientCard(patientId))
             {
@@ -388,13 +462,14 @@ namespace WindowsFormsApp1
         {
             if (_patientsGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите пациента для просмотра приемов", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Выберите пациента для просмотра приемов", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             var row = _patientsGrid.SelectedRows[0];
-            int patientId = Convert.ToInt32(row.Cells["ID"].Value);
-            string patientName = $"{row.Cells["Фамилия"].Value} {row.Cells["Имя"].Value}";
+            int patientId = Convert.ToInt32(row.Cells["patient_id"].Value);
+            string patientName = $"{row.Cells["last_name"].Value} {row.Cells["first_name"].Value}";
 
             using (var appointmentsForm = new PatientAppointments(patientId, patientName))
             {
@@ -409,6 +484,44 @@ namespace WindowsFormsApp1
             loginPage.Show();
             loginPage.FormClosed += (s, args) => this.Close();
             this.Hide();
+        }
+
+        private void BtnManageAccount_Click(object sender, EventArgs e)
+        {
+            if (_doctorsGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите врача для управления аккаунтом", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var row = _doctorsGrid.SelectedRows[0];
+            int doctorId = Convert.ToInt32(row.Cells["ID"].Value);
+            string doctorName = $"{row.Cells["Фамилия"].Value} {row.Cells["Имя"].Value}";
+
+            using (var accountForm = new UserAccountForm(doctorId, "doctor", doctorName))
+            {
+                accountForm.ShowDialog();
+            }
+        }
+
+        private void BtnManagePatientAccount_Click(object sender, EventArgs e)
+        {
+            if (_patientsGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите пациента для управления аккаунтом", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var row = _patientsGrid.SelectedRows[0];
+            int patientId = Convert.ToInt32(row.Cells["patient_id"].Value);
+            string patientName = $"{row.Cells["last_name"].Value} {row.Cells["first_name"].Value}";
+
+            using (var accountForm = new UserAccountForm(patientId, "patient", patientName))
+            {
+                accountForm.ShowDialog();
+            }
         }
     }
 }

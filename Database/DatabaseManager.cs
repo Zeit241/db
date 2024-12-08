@@ -22,7 +22,7 @@ namespace WindowsFormsApp1
 
         public DatabaseManager()
         {
-            _connectionString = "Host=db.zeit-dev.site;Username=admin;Password=admin_password;Database=db;Port=15432";
+            _connectionString = "Host=db.zeit-dev.site;Port=15432;Username=admin;Password=admin_password;Database=db";
         }
 
         private string HashPassword(string password, string salt)
@@ -68,7 +68,7 @@ namespace WindowsFormsApp1
                     // Создаем нового пользователя
                     string salt = GenerateSalt();
                     string hashedPassword = HashPassword(password, salt);
-                    
+
                     string query = @"
                         INSERT INTO users (username, password_hash, salt, user_role) 
                         VALUES (@username, @password_hash, @salt, @user_role)";
@@ -183,8 +183,9 @@ namespace WindowsFormsApp1
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Ошибка при получении списка врачей: {ex.Message}");
                 return new DataTable();
             }
         }
@@ -211,9 +212,9 @@ namespace WindowsFormsApp1
             }
         }
 
-        public bool UpdateDoctor(int doctorId, string firstName, string lastName, string patronymic, 
+        public bool UpdateDoctor(int doctorId, string firstName, string lastName, string patronymic,
                                int specialtyId, int experienceYears, string phoneNumber, string email,
-                               string city, string street, string building, DateTime dateOfBirth, 
+                               string city, string street, string building, DateTime dateOfBirth,
                                char gender, byte[] photo = null)
         {
             try
@@ -314,9 +315,9 @@ namespace WindowsFormsApp1
             }
         }
 
-        public bool CreateDoctor(string firstName, string lastName, string patronymic, 
-                               int specialtyId, int experienceYears, string phoneNumber, 
-                               string email, string city, string street, string building, 
+        public bool CreateDoctor(string firstName, string lastName, string patronymic,
+                               int specialtyId, int experienceYears, string phoneNumber,
+                               string email, string city, string street, string building,
                                DateTime dateOfBirth, char gender, byte[] photo = null)
         {
             try
@@ -410,7 +411,7 @@ namespace WindowsFormsApp1
                             if (row["photo"] != DBNull.Value)
                             {
                                 var photoData = (byte[])row["photo"];
-                                Console.WriteLine($"Размер загружен��ого фото: {photoData.Length} байт");
+                                Console.WriteLine($"Размер загруженного фото: {photoData.Length} байт");
                             }
                             else
                             {
@@ -568,12 +569,13 @@ namespace WindowsFormsApp1
                             last_name,
                             patronymic,
                             birth_date,
-                            address_city,
-                            address_street,
-                            address_building,
+                            CONCAT(address_city, ', ', address_street, ', ', address_building) as ""address"",
                             phone_number,
                             email,
-                            gender,
+                            CASE 
+                                WHEN gender = 'M' THEN 'Мужской'
+                                WHEN gender = 'F' THEN 'Женский'
+                            END as ""gender"",
                             photo
                         FROM patients
                         ORDER BY last_name, first_name";
@@ -629,7 +631,7 @@ namespace WindowsFormsApp1
             }
             catch (Exception ex)
             {
-               
+
                 throw;
             }
         }
@@ -701,7 +703,7 @@ namespace WindowsFormsApp1
             }
             catch (Exception ex)
             {
-              
+
                 throw;
             }
         }
@@ -766,15 +768,19 @@ namespace WindowsFormsApp1
                     connection.Open();
                     string query = @"
                         SELECT 
-                            a.appointment_id as ""ID"",
                             CONCAT(d.last_name, ' ', d.first_name) as ""Врач"",
-                            a.appointment_date as ""Дата"",
-                            a.appointment_time as ""Время"",
-                            a.status as ""Статус""
-                        FROM appointments a
-                        JOIN doctors d ON a.doctor_id = d.doctor_id
-                        WHERE a.patient_id = @patientId
-                        ORDER BY a.appointment_date DESC, a.appointment_time DESC";
+                            ds.work_date as ""Дата"",
+                            vs.slot_time as ""Время"",
+                            CASE 
+                                WHEN v.diagnosis_id IS NOT NULL THEN 'Завершен'
+                                ELSE 'Ожидается'
+                            END as ""Статус""
+                        FROM visits v
+                        JOIN visit_slots vs ON v.slot_id = vs.slot_id
+                        JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
+                        JOIN doctors d ON ds.doctor_id = d.doctor_id
+                        WHERE v.patient_id = @patientId
+                        ORDER BY ds.work_date DESC, vs.slot_time DESC";
 
                     using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
@@ -977,7 +983,7 @@ namespace WindowsFormsApp1
             }
         }
 
-        public Patient GetPatientById(int patientId)
+        public Patient GetPatientById2(int patientId)
         {
             try
             {
@@ -1099,13 +1105,263 @@ namespace WindowsFormsApp1
             cmd.Parameters.AddWithValue("@lastName", patient.LastName);
             cmd.Parameters.AddWithValue("@patronymic", (object)patient.Patronymic ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@birthDate", patient.BirthDate);
-            cmd.Parameters.AddWithValue("@gender", NpgsqlDbType.Char, patient.Gender);
+            cmd.Parameters.AddWithValue("@gender", patient.Gender);
             cmd.Parameters.AddWithValue("@addressCity", (object)patient.AddressCity ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@addressStreet", (object)patient.AddressStreet ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@addressBuilding", (object)patient.AddressBuilding ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@phoneNumber", (object)patient.PhoneNumber ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@email", (object)patient.Email ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@photo", (object)patient.Photo ?? DBNull.Value);
+        }
+
+        public List<TimeSpan> GetAvailableTimeSlots(int doctorId, DateTime date)
+        {
+            var availableSlots = new List<TimeSpan>();
+            try
+            {
+                using (var connection = new NpgsqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT ds.start_time, ds.end_time 
+                        FROM doctor_schedule ds
+                        WHERE ds.doctor_id = @doctorId 
+                        AND ds.work_date = @date";
+
+                    using (var command = new NpgsqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@doctorId", doctorId);
+                        command.Parameters.AddWithValue("@date", date.Date);
+
+                        using (var reader = command.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                TimeSpan startTime = reader.GetTimeSpan(0);
+                                TimeSpan endTime = reader.GetTimeSpan(1);
+
+                                // Генерируем слоты по 25 минут
+                                var currentSlot = startTime;
+                                while (currentSlot.Add(TimeSpan.FromMinutes(25)) <= endTime)
+                                {
+                                    availableSlots.Add(currentSlot);
+                                    currentSlot = currentSlot.Add(TimeSpan.FromMinutes(25));
+                                }
+                            }
+                        }
+                    }
+
+                    // Получаем уже занятые слоты
+                    query = @"
+                        SELECT vs.slot_time 
+                        FROM visit_slots vs
+                        JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
+                        WHERE ds.doctor_id = @doctorId 
+                        AND ds.work_date = @date
+                        AND vs.is_booked = true";
+
+                    using (var command = new NpgsqlCommand(query, connection))
+                    {
+                        command.Parameters.AddWithValue("@doctorId", doctorId);
+                        command.Parameters.AddWithValue("@date", date.Date);
+
+                        using (var reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                TimeSpan bookedTime = reader.GetTimeSpan(0);
+                                availableSlots.Remove(bookedTime);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при получении доступных слотов: {ex.Message}");
+            }
+            return availableSlots;
+        }
+
+        public bool CreateAppointment(int doctorId, int patientId, DateTime date, TimeSpan time)
+        {
+            try
+            {
+                using (var connection = new NpgsqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Находим schedule_id
+                            string findScheduleQuery = @"
+                                SELECT schedule_id 
+                                FROM doctor_schedule 
+                                WHERE doctor_id = @doctorId 
+                                AND work_date = @date";
+
+                            int scheduleId;
+                            using (var command = new NpgsqlCommand(findScheduleQuery, connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@doctorId", doctorId);
+                                command.Parameters.AddWithValue("@date", date.Date);
+                                var result = command.ExecuteScalar();
+                                if (result == null) return false;
+                                scheduleId = Convert.ToInt32(result);
+                            }
+
+                            // Проверяем существование слота
+                            string checkSlotQuery = @"
+                                SELECT slot_id 
+                                FROM visit_slots 
+                                WHERE schedule_id = @scheduleId 
+                                AND slot_time = @time";
+
+                            int? existingSlotId = null;
+                            using (var command = new NpgsqlCommand(checkSlotQuery, connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@scheduleId", scheduleId);
+                                command.Parameters.AddWithValue("@time", time);
+                                var result = command.ExecuteScalar();
+                                if (result != null)
+                                {
+                                    existingSlotId = Convert.ToInt32(result);
+                                }
+                            }
+
+                            int slotId;
+                            if (existingSlotId.HasValue)
+                            {
+                                // Обновляем существующий слот
+                                string updateSlotQuery = @"
+                                    UPDATE visit_slots 
+                                    SET is_booked = true 
+                                    WHERE slot_id = @slotId 
+                                    RETURNING slot_id";
+
+                                using (var command = new NpgsqlCommand(updateSlotQuery, connection, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@slotId", existingSlotId.Value);
+                                    slotId = Convert.ToInt32(command.ExecuteScalar());
+                                }
+                            }
+                            else
+                            {
+                                // Создаем новый слот
+                                string insertSlotQuery = @"
+                                    INSERT INTO visit_slots (schedule_id, slot_time, is_booked)
+                                    VALUES (@scheduleId, @time, true)
+                                    RETURNING slot_id";
+
+                                using (var command = new NpgsqlCommand(insertSlotQuery, connection, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@scheduleId", scheduleId);
+                                    command.Parameters.AddWithValue("@time", time);
+                                    slotId = Convert.ToInt32(command.ExecuteScalar());
+                                }
+                            }
+
+                            // Создаем запись о визите
+                            string createVisitQuery = @"
+                                INSERT INTO visits (slot_id, patient_id)
+                                VALUES (@slotId, @patientId)
+                                RETURNING visit_id";
+
+                            using (var command = new NpgsqlCommand(createVisitQuery, connection, transaction))
+                            {
+                                command.Parameters.AddWithValue("@slotId", slotId);
+                                command.Parameters.AddWithValue("@patientId", patientId);
+                                command.ExecuteScalar();
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Ошибка при создании записи: {ex.Message}");
+                            transaction.Rollback();
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при создании записи: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool DeleteAppointment(int patientId, DateTime date, TimeSpan time)
+        {
+            try
+            {
+                using (var connection = new NpgsqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Сначала получаем slot_id
+                            string findSlotQuery = @"
+                                SELECT v.slot_id
+                                FROM visits v
+                                JOIN visit_slots vs ON v.slot_id = vs.slot_id
+                                JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
+                                WHERE v.patient_id = @patientId
+                                AND ds.work_date = @date
+                                AND vs.slot_time = @time";
+
+                            int slotId;
+                            using (var cmd = new NpgsqlCommand(findSlotQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@patientId", patientId);
+                                cmd.Parameters.AddWithValue("@date", date.Date);
+                                cmd.Parameters.AddWithValue("@time", time);
+                                var result = cmd.ExecuteScalar();
+                                if (result == null) return false;
+                                slotId = Convert.ToInt32(result);
+                            }
+
+                            // Удаляем запись
+                            string deleteVisitQuery = "DELETE FROM visits WHERE slot_id = @slotId";
+                            using (var cmd = new NpgsqlCommand(deleteVisitQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@slotId", slotId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Освобождаем слот
+                            string updateSlotQuery = @"
+                                UPDATE visit_slots 
+                                SET is_booked = false 
+                                WHERE slot_id = @slotId";
+
+                            using (var cmd = new NpgsqlCommand(updateSlotQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@slotId", slotId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при удалении записи: {ex.Message}");
+                return false;
+            }
         }
 
     }
