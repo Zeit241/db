@@ -30,8 +30,8 @@
         {
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.doctors = new System.Windows.Forms.TabPage();
-            this.diagnoses = new System.Windows.Forms.TabPage();
             this.patients = new System.Windows.Forms.TabPage();
+            this.visits = new System.Windows.Forms.TabPage();
             this.logoutBtn = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.tabControl1.SuspendLayout();
@@ -41,7 +41,7 @@
             // 
             this.tabControl1.Controls.Add(this.doctors);
             this.tabControl1.Controls.Add(this.patients);
-            this.tabControl1.Controls.Add(this.diagnoses);
+            this.tabControl1.Controls.Add(this.visits);
             this.tabControl1.Location = new System.Drawing.Point(-1, 39);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -58,16 +58,6 @@
             this.doctors.Text = "Доктора";
             this.doctors.UseVisualStyleBackColor = true;
             // 
-            // diagnoses
-            // 
-            this.diagnoses.Location = new System.Drawing.Point(4, 22);
-            this.diagnoses.Name = "diagnoses";
-            this.diagnoses.Padding = new System.Windows.Forms.Padding(3);
-            this.diagnoses.Size = new System.Drawing.Size(794, 387);
-            this.diagnoses.TabIndex = 1;
-            this.diagnoses.Text = "Диагнозы";
-            this.diagnoses.UseVisualStyleBackColor = true;
-            // 
             // patients
             // 
             this.patients.Location = new System.Drawing.Point(4, 22);
@@ -76,6 +66,16 @@
             this.patients.TabIndex = 2;
             this.patients.Text = "Пациенты";
             this.patients.UseVisualStyleBackColor = true;
+            // 
+            // visits
+            // 
+            this.visits.Location = new System.Drawing.Point(4, 22);
+            this.visits.Name = "visits";
+            this.visits.Padding = new System.Windows.Forms.Padding(3);
+            this.visits.Size = new System.Drawing.Size(794, 387);
+            this.visits.TabIndex = 1;
+            this.visits.Text = "Визиты";
+            this.visits.UseVisualStyleBackColor = true;
             // 
             // logoutBtn
             // 
@@ -116,7 +116,7 @@
 
         private System.Windows.Forms.TabControl tabControl1;
         private System.Windows.Forms.TabPage doctors;
-        private System.Windows.Forms.TabPage diagnoses;
+        private System.Windows.Forms.TabPage visits;
         private System.Windows.Forms.Button logoutBtn;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TabPage patients;

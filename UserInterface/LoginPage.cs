@@ -50,11 +50,11 @@ namespace WindowsFormsApp1
                 return;
             }
 
-            var (success, userId, role) = dbManager.ValidateUser(username, password);
+            var (success, userId, role, patient_id, doctor_id) = dbManager.ValidateUser(username, password);
 
             if (success)
             {
-                UserSession.Instance.Initialize(userId, username, role);
+                UserSession.Instance.Initialize(userId, username, role, patient_id, doctor_id);
 
                 MessageBox.Show("Авторизация успешна!", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
 

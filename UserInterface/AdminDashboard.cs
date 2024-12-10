@@ -4,6 +4,7 @@ using System.Drawing;
 using DatabaseCursovaya;
 using System.Data;
 using DatabaseCursovaya.UI;
+using DatabaseCursovaya.UserInterface;
 using System.Linq;
 
 namespace WindowsFormsApp1
@@ -17,6 +18,7 @@ namespace WindowsFormsApp1
 
         private DataGridView _doctorsGrid;
         private DataGridView _patientsGrid;
+        private DataGridView _diagnosesGrid;
 
         private DataTable _originalPatientsData;
         private DataTable _originalDoctorsData;
@@ -156,7 +158,7 @@ namespace WindowsFormsApp1
                 Padding = new Padding(5)
             };
 
-            // Создаем и настраиваем кнопки
+            // Создаем и ��астраиваем кнопки
             Button addButton = new Button
             {
                 Text = "Добавить",
@@ -229,6 +231,152 @@ namespace WindowsFormsApp1
             tab.Controls.Add(_patientsSearchBox);
             tab.Controls.Add(patientsButtonPanel);
         }
+        private void InitializeDiagnosesTab(TabPage tab)
+        {
+            // Создаем панель для кнопок
+            Panel diagnosesButtonPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 40,
+                Padding = new Padding(5)
+            };
+
+            // Создаем и настраиваем кнопки
+            Button detailsButton = new Button
+            {
+                Text = "Подробнее",
+                Width = 100,
+                Height = 30,
+                Location = new Point(5, 5)
+            };
+
+            Button editButton = new Button
+            {
+                Text = "Изменить",
+                Width = 100,
+                Height = 30,
+                Location = new Point(110, 5)
+            };
+
+            Button deleteButton = new Button
+            {
+                Text = "Удалить",
+                Width = 100,
+                Height = 30,
+                Location = new Point(215, 5)
+            };
+
+            // Привязываем обработчики
+            detailsButton.Click += BtnDiagnosisDetails_Click;
+            editButton.Click += BtnEditDiagnosis_Click;
+            deleteButton.Click += BtnDeleteDiagnosis_Click;
+
+            // Добавляем кнопки на панель
+            diagnosesButtonPanel.Controls.AddRange(new Control[] {
+        detailsButton,
+        editButton,
+        deleteButton
+    });
+
+            // Настройка таблицы диагнозов
+            _diagnosesGrid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                AllowUserToAddRows = false,
+                ReadOnly = true
+            };
+
+            // Добавляем элементы управления на вкладку
+            tab.Controls.Add(_diagnosesGrid);
+            tab.Controls.Add(diagnosesButtonPanel);
+
+            // Загружаем данные
+            LoadDiagnoses();
+        }
+
+        private void LoadDiagnoses()
+        {
+            _diagnosesGrid.DataSource = _dbManager.GetAllVisits();
+            // Настраиваем отображение столбцов
+            if (_patientsGrid.Columns.Count > 0)
+                _diagnosesGrid.Columns["diagnosis_id"].HeaderText = "ID";
+            {
+            }
+        }
+
+        private void BtnDiagnosisDetails_Click(object sender, EventArgs e)
+        {
+            if (_diagnosesGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите визит для просмотра", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var row = _diagnosesGrid.SelectedRows[0];
+            int visitId = Convert.ToInt32(row.Cells["visit_id"].Value);
+
+            using (var detailsForm = new VisitDetailsForm(visitId))
+            {
+                detailsForm.ShowDialog();
+            }
+        }
+
+        private void BtnEditDiagnosis_Click(object sender, EventArgs e)
+        {
+            if (_diagnosesGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите диагноз для редактирования", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var row = _diagnosesGrid.SelectedRows[0];
+            int diagnosisId = Convert.ToInt32(row.Cells["diagnosis_id"].Value);
+
+            using (var editForm = new VisitEditForm(diagnosisId))
+            {
+                if (editForm.ShowDialog() == DialogResult.OK)
+                {
+                    LoadDiagnoses();
+                }
+            }
+        }
+
+        private void BtnDeleteDiagnosis_Click(object sender, EventArgs e)
+        {
+            if (_diagnosesGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Выберите диагноз для удаления", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var row = _diagnosesGrid.SelectedRows[0];
+            int diagnosisId = Convert.ToInt32(row.Cells["diagnosis_id"].Value);
+            string diagnosisName = row.Cells["name"].Value.ToString();
+
+            if (MessageBox.Show($"Вы действительно хотите удалить диагноз '{diagnosisName}'?",
+                             "Подтверждение",
+                             MessageBoxButtons.YesNo,
+                             MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                if (_dbManager.DeleteVisit(diagnosisId))
+                {
+                    MessageBox.Show("Диагноз успешно удален", "Успех",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadDiagnoses();
+                }
+                else
+                {
+                    MessageBox.Show("Ошибка при удалении диагноза", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
 
         private void InitializeComponents()
         {
@@ -240,6 +388,7 @@ namespace WindowsFormsApp1
             // Инициализация вкладок
             InitializeDoctorsTab(tabControl1.TabPages[0]);
             InitializePatientsTab(tabControl1.TabPages[1]);
+            InitializeDiagnosesTab(tabControl1.TabPages[2]);
         }
 
         private void LoadDoctors()
@@ -340,7 +489,7 @@ namespace WindowsFormsApp1
                 }
                 else
                 {
-                    MessageBox.Show("Ошибка при удалении врача", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Ошибка при удалении врача", "Ош��бка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -509,7 +658,7 @@ namespace WindowsFormsApp1
         {
             if (_patientsGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите пациента для управления аккаунтом", "Предупреждение",
+                MessageBox.Show("Выберите пациента для управления аккаунтом", "Предупреждени��",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }

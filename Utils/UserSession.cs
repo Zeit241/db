@@ -13,6 +13,8 @@ namespace DatabaseCursovaya
 
         public int UserId { get; private set; }
         public string Username { get; private set; }
+
+        public int RoleId { get; private set; }
         public string Role { get; private set; }
         public DateTime LoginTime { get; private set; }
 
@@ -36,12 +38,21 @@ namespace DatabaseCursovaya
             }
         }
 
-        public void Initialize(int userId, string username, string role)
+        public void Initialize(int userId, string username, string role, int? patient_id, int? doctor_id)
         {
             UserId = userId;
             Username = username;
             Role = role;
             LoginTime = DateTime.Now;
+
+            if(patient_id != null)
+            {
+                RoleId = (int)patient_id;
+            }
+            if(doctor_id != null)
+            {
+                RoleId = (int)doctor_id;
+            }
         }
 
         public void Clear()

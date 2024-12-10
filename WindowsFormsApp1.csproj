@@ -93,6 +93,24 @@
       <DependentUpon>AdminDashboard.cs</DependentUpon>
     </Compile>
     <Compile Include="Database\DatabaseManager.cs" />
+    <Compile Include="UserInterface\DiagnosisCreateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\DiagnosisCreateForm.Designer.cs">
+      <DependentUpon>DiagnosisCreateForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserInterface\VisitDetailsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\VisitDetailsForm.Designer.cs">
+      <DependentUpon>VisitDetailsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserInterface\VisitEditForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UserInterface\VisitEditForm.Designer.cs">
+      <DependentUpon>VisitEditForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="UserInterface\DoctorCard.cs">
       <SubType>Form</SubType>
     </Compile>
