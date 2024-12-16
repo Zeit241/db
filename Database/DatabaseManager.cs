@@ -180,15 +180,16 @@ namespace WindowsFormsApp1
 
                     using (var adapter = new NpgsqlDataAdapter(query, connection))
                     {
-                        DataTable doctorsTable = new DataTable();
-                        adapter.Fill(doctorsTable);
-                        return doctorsTable;
+                        DataTable dt = new DataTable();
+                        adapter.Fill(dt);
+                        return dt;
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при получении списка врачей: {ex.Message}");
+                MessageBox.Show($"Ошибка при получении списка врачей: {ex.Message}",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return new DataTable();
             }
         }
@@ -200,17 +201,51 @@ namespace WindowsFormsApp1
                 using (var connection = new NpgsqlConnection(_connectionString))
                 {
                     connection.Open();
-                    string query = "DELETE FROM doctors WHERE doctor_id = @doctorId";
-
-                    using (var command = new NpgsqlCommand(query, connection))
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        command.Parameters.AddWithValue("@doctorId", doctorId);
-                        return command.ExecuteNonQuery() > 0;
+                        try
+                        {
+                            // Удаляем расписание и слоты
+                            string deleteScheduleQuery = @"
+                                DELETE FROM visit_slots 
+                                WHERE schedule_id IN (
+                                    SELECT schedule_id 
+                                    FROM doctor_schedule 
+                                    WHERE doctor_id = @doctorId
+                                );
+                                DELETE FROM doctor_schedule 
+                                WHERE doctor_id = @doctorId;";
+
+                            using (var cmd = new NpgsqlCommand(deleteScheduleQuery, connection))
+                            {
+                                cmd.Transaction = transaction;
+                                cmd.Parameters.AddWithValue("@doctorId", doctorId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Удаляем врача
+                            string deleteDoctorQuery = "DELETE FROM doctors WHERE doctor_id = @doctorId";
+                            using (var cmd = new NpgsqlCommand(deleteDoctorQuery, connection))
+                            {
+                                cmd.Transaction = transaction;
+                                cmd.Parameters.AddWithValue("@doctorId", doctorId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch (Exception)
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Ошибка при удалении врача: {ex.Message}");
                 return false;
             }
         }
@@ -1377,18 +1412,13 @@ namespace WindowsFormsApp1
                     string query = @"
                         SELECT 
                             v.visit_id,
+                            v.diagnosis_id,
                             CONCAT(p.last_name, ' ', p.first_name) as ""Пациент"",
                             CONCAT(doc.last_name, ' ', doc.first_name) as ""Врач"",
                             ds.work_date as ""Дата приема"",
                             vs.slot_time as ""Время приема"",
-                            CASE 
-                                WHEN v.diagnosis_id IS NOT NULL THEN d.name
-                                ELSE 'Не назначен'
-                            END as ""Диагноз"",
-                            CASE 
-                                WHEN v.diagnosis_id IS NOT NULL THEN 'Завершен'
-                                ELSE 'Ожидается'
-                            END as ""Статус""
+                            d.name as ""Диагноз"",
+                            v.status as ""Статус""
                         FROM visits v
                         JOIN visit_slots vs ON v.slot_id = vs.slot_id
                         JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
@@ -1420,18 +1450,64 @@ namespace WindowsFormsApp1
                 using (var connection = new NpgsqlConnection(_connectionString))
                 {
                     connection.Open();
-                    string query = "DELETE FROM visits WHERE visit_id = @visitId";
-
-                    using (var command = new NpgsqlCommand(query, connection))
+                    using (var transaction = connection.BeginTransaction())
                     {
-                        command.Parameters.AddWithValue("@visitId", visitId);
-                        return command.ExecuteNonQuery() > 0;
+                        try
+                        {
+                            // Сначала получаем slot_id
+                            string getSlotIdQuery = @"
+                                SELECT slot_id 
+                                FROM visits 
+                                WHERE visit_id = @visitId";
+
+                            int? slotId = null;
+                            using (var cmd = new NpgsqlCommand(getSlotIdQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@visitId", visitId);
+                                var result = cmd.ExecuteScalar();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    slotId = Convert.ToInt32(result);
+                                }
+                            }
+
+                            // Удаляем визит
+                            string deleteVisitQuery = "DELETE FROM visits WHERE visit_id = @visitId";
+                            using (var cmd = new NpgsqlCommand(deleteVisitQuery, connection, transaction))
+                            {
+                                cmd.Parameters.AddWithValue("@visitId", visitId);
+                                cmd.ExecuteNonQuery();
+                            }
+
+                            // Если есть slot_id, освобождаем слот
+                            if (slotId.HasValue)
+                            {
+                                string updateSlotQuery = @"
+                                    UPDATE visit_slots 
+                                    SET is_booked = false 
+                                    WHERE slot_id = @slotId";
+
+                                using (var cmd = new NpgsqlCommand(updateSlotQuery, connection, transaction))
+                                {
+                                    cmd.Parameters.AddWithValue("@slotId", slotId.Value);
+                                    cmd.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при удалении записи: {ex.Message}",
+                MessageBox.Show($"Ошибка при удалении визита: {ex.Message}",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
@@ -1448,19 +1524,15 @@ namespace WindowsFormsApp1
                 SELECT 
                     v.visit_id,
                     v.diagnosis_id,
+                    v.treatment_plan as ""План лечения"",
+                    v.prescription as ""Рецепт"",
                     v.notes as ""Заметки"",
-                    CASE 
-                        WHEN v.prescription IS NOT NULL THEN v.prescription
-                        ELSE 'Не назначены'
-                    END as ""Диагноз"", 
+                    v.status as ""Статус"",
+                    d.name as ""Диагноз"",
                     CONCAT(p.last_name, ' ', p.first_name) as ""Пациент"",
                     CONCAT(doc.last_name, ' ', doc.first_name) as ""Врач"",
                     ds.work_date as ""Дата приема"",
-                    vs.slot_time as ""Время приема"",
-                    CASE 
-                        WHEN v.diagnosis_id IS NOT NULL THEN d.name
-                        ELSE 'Не назначен'
-                    END as ""Диагноз""
+                    vs.slot_time as ""Время приема""
                 FROM visits v
                 JOIN visit_slots vs ON v.slot_id = vs.slot_id
                 JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
@@ -1591,8 +1663,8 @@ namespace WindowsFormsApp1
                             CASE 
                                 WHEN v.diagnosis_id IS NOT NULL THEN d.name
                                 ELSE 'Не назначен'
-                            END as ""Диагноз""
-                        
+                            END as ""Диагноз"",
+                            v.status as ""Статус""
                         FROM visits v
                         JOIN visit_slots vs ON v.slot_id = vs.slot_id
                         JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
@@ -1616,6 +1688,64 @@ namespace WindowsFormsApp1
                 MessageBox.Show($"Ошибка при получении списка приемов: {ex.Message}",
                     "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return new DataTable();
+            }
+        }
+
+        public bool HasDoctorSchedule(int doctorId)
+        {
+            try
+            {
+                using (var connection = new NpgsqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT EXISTS (
+                            SELECT 1 FROM doctor_schedule 
+                            WHERE doctor_id = @doctorId 
+                            AND work_date >= CURRENT_DATE
+                        )";
+
+                    using (var cmd = new NpgsqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@doctorId", doctorId);
+                        return (bool)cmd.ExecuteScalar();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при проверке расписания врача: {ex.Message}");
+                return false;
+            }
+        }
+
+        public bool HasDoctorVisits(int doctorId)
+        {
+            try
+            {
+                using (var connection = new NpgsqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT EXISTS (
+                            SELECT 1 
+                            FROM visits v
+                            JOIN visit_slots vs ON v.slot_id = vs.slot_id
+                            JOIN doctor_schedule ds ON vs.schedule_id = ds.schedule_id
+                            WHERE ds.doctor_id = @doctorId
+                        )";
+
+                    using (var cmd = new NpgsqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@doctorId", doctorId);
+                        return (bool)cmd.ExecuteScalar();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка при проверке приемов врача: {ex.Message}");
+                return false;
             }
         }
 

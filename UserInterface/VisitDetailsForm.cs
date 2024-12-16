@@ -7,6 +7,7 @@ namespace DatabaseCursovaya.UserInterface
 {
     public partial class VisitDetailsForm : Form
     {
+        public event EventHandler VisitUpdated;
         private readonly DatabaseManager _dbManager;
         private readonly int _visitId;
         private ComboBox diagnosisComboBox;
@@ -14,7 +15,9 @@ namespace DatabaseCursovaya.UserInterface
         private Button btnNewDiagnosis;
         private Button saveButton;
         private Button cancelButton;
-
+        private TextBox treatmentPlanTextBox;
+        private TextBox prescriptionTextBox;
+        private TextBox notesTextBox;
         public VisitDetailsForm(int visitId)
         {
             InitializeComponent();
@@ -64,7 +67,7 @@ namespace DatabaseCursovaya.UserInterface
                 AutoSize = true
             };
 
-            TextBox treatmentPlanTextBox = new TextBox
+            treatmentPlanTextBox = new TextBox
             {
                 Location = new Point(12, 85),
                 Width = 358,
@@ -80,7 +83,7 @@ namespace DatabaseCursovaya.UserInterface
                 AutoSize = true
             };
 
-            TextBox prescriptionTextBox = new TextBox
+            prescriptionTextBox = new TextBox
             {
                 Location = new Point(12, 155),
                 Width = 358,
@@ -96,7 +99,7 @@ namespace DatabaseCursovaya.UserInterface
                 AutoSize = true
             };
 
-            TextBox notesTextBox = new TextBox
+            notesTextBox = new TextBox
             {
                 Location = new Point(12, 225),
                 Width = 358,
@@ -104,12 +107,33 @@ namespace DatabaseCursovaya.UserInterface
                 Multiline = true
             };
 
+            // Статус
+            Label statusLabel = new Label
+            {
+                Text = "Статус:",
+                Location = new Point(12, 275),
+                AutoSize = true
+            };
+
+            statusComboBox = new ComboBox
+            {
+                Location = new Point(12, 295),
+                Width = 358,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+
+            // Добавляем значения статусов
+            statusComboBox.Items.AddRange(new[] { "Ожидается", "Не явился", "Принят" });
+            statusComboBox.SelectedIndex = 0;
+
+            statusComboBox.SelectedIndexChanged += StatusComboBox_SelectedIndexChanged;
+
             // Кнопки
             saveButton = new Button
             {
                 Text = "Сохранить",
                 DialogResult = DialogResult.OK,
-                Location = new Point(12, 160),
+                Location = new Point(12, 330),
                 Width = 100
             };
             saveButton.Click += SaveButton_Click;
@@ -118,7 +142,7 @@ namespace DatabaseCursovaya.UserInterface
             {
                 Text = "Отмена",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(122, 160),
+                Location = new Point(122, 330),
                 Width = 100
             };
 
@@ -127,6 +151,7 @@ namespace DatabaseCursovaya.UserInterface
         treatmentPlanLabel, treatmentPlanTextBox,
         prescriptionLabel, prescriptionTextBox,
         notesLabel, notesTextBox,
+        statusLabel, statusComboBox,
         saveButton, cancelButton
     });
 
@@ -146,11 +171,30 @@ namespace DatabaseCursovaya.UserInterface
             var visitData = _dbManager.GetVisitById(_visitId);
             if (visitData != null)
             {
+                string status = visitData["Статус"].ToString();
+                statusComboBox.SelectedItem = status;
 
-
-                if (visitData["Диагноз"] != DBNull.Value)
+                if (status != "Не явился")
                 {
-                    diagnosisComboBox.SelectedValue = visitData["diagnosis_id"];
+                    if (visitData["Диагноз"] != DBNull.Value)
+                    {
+                        diagnosisComboBox.SelectedValue = visitData["diagnosis_id"];
+                    }
+
+                    if (visitData["План лечения"] != DBNull.Value)
+                    {
+                        treatmentPlanTextBox.Text = visitData["План лечения"].ToString();
+                    }
+
+                    if (visitData["Рецепт"] != DBNull.Value)
+                    {
+                        prescriptionTextBox.Text = visitData["Рецепт"].ToString();
+                    }
+                }
+
+                if (visitData["Заметки"] != DBNull.Value)
+                {
+                    notesTextBox.Text = visitData["Заметки"].ToString();
                 }
             }
         }
@@ -168,14 +212,61 @@ namespace DatabaseCursovaya.UserInterface
 
         private void SaveButton_Click(object sender, EventArgs e)
         {
-            int? diagnosisId = diagnosisComboBox.SelectedValue != null ?
-                (int?)Convert.ToInt32(diagnosisComboBox.SelectedValue) : null;
-
             string status = statusComboBox.SelectedItem.ToString();
-            string dbStatus = status == "Завершен" ? "completed" :
-                             status == "Не явился" ? "no_show" : "waiting";
+            int? diagnosisId = null;
+            string treatmentPlan = "";
+            string prescription = "";
+            string notes = notesTextBox.Text.Trim();
 
+            if (status != "Не явился")
+            {
+                diagnosisId = diagnosisComboBox.SelectedValue != null ?
+                    (int?)Convert.ToInt32(diagnosisComboBox.SelectedValue) : null;
+                treatmentPlan = treatmentPlanTextBox.Text.Trim();
+                prescription = prescriptionTextBox.Text.Trim();
 
+                if (status == "Принят" && diagnosisId == null)
+                {
+                    MessageBox.Show("Для принятого пациента необходимо указать диагноз",
+                        "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
+
+            if (_dbManager.UpdateVisit(_visitId, diagnosisId, status, notes, treatmentPlan, prescription, null))
+            {
+                MessageBox.Show("Данные успешно сохранены", "Успех",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                VisitUpdated?.Invoke(this, EventArgs.Empty);
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            else
+            {
+                MessageBox.Show("Ошибка при сохранении данных", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void StatusComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (statusComboBox.SelectedItem.ToString() == "Не явился")
+            {
+                diagnosisComboBox.SelectedIndex = -1;
+                diagnosisComboBox.Enabled = false;
+                btnNewDiagnosis.Enabled = false;
+                treatmentPlanTextBox.Clear();
+                treatmentPlanTextBox.Enabled = false;
+                prescriptionTextBox.Clear();
+                prescriptionTextBox.Enabled = false;
+            }
+            else
+            {
+                diagnosisComboBox.Enabled = true;
+                btnNewDiagnosis.Enabled = true;
+                treatmentPlanTextBox.Enabled = true;
+                prescriptionTextBox.Enabled = true;
+            }
         }
     }
 }

@@ -194,33 +194,113 @@ namespace DatabaseCursovaya.UI
 
         private bool ValidateInput()
         {
-            if (string.IsNullOrWhiteSpace(lastNameTextBox.Text))
+            // Валидация ФИО
+            if (string.IsNullOrWhiteSpace(lastNameTextBox.Text) || lastNameTextBox.Text.Length < 2)
             {
-                MessageBox.Show("Введите фамилию", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Фамилия должна содержать минимум 2 символа",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lastNameTextBox.Focus();
                 return false;
             }
 
-            if (string.IsNullOrWhiteSpace(firstNameTextBox.Text))
+            if (string.IsNullOrWhiteSpace(firstNameTextBox.Text) || firstNameTextBox.Text.Length < 2)
             {
-                MessageBox.Show("Введите имя", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Имя должно содержать минимум 2 символа",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                firstNameTextBox.Focus();
                 return false;
             }
 
-            if (experienceNumeric.Value < 0)
+            if (!string.IsNullOrWhiteSpace(patronymicTextBox.Text) && patronymicTextBox.Text.Length < 2)
             {
-                MessageBox.Show("Стаж не может быть отрицательным", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Отчество должно содержать минимум 2 символа",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                patronymicTextBox.Focus();
                 return false;
             }
 
-            if (dateOfBirthPicker.Value > DateTime.Now.AddYears(-18))
-            {
-                MessageBox.Show("Врач должен быть старше 18 лет", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
-            }
-
+            // Валидация специальности
             if (specialtyComboBox.SelectedValue == null)
             {
-                MessageBox.Show("Выберите специальность", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Выберите специальность врача",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                specialtyComboBox.Focus();
+                return false;
+            }
+
+            // Валидация стажа и возраста
+            if (experienceNumeric.Value < 0)
+            {
+                MessageBox.Show("Стаж не может быть отрицательным",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                experienceNumeric.Focus();
+                return false;
+            }
+
+            var age = DateTime.Now.Year - dateOfBirthPicker.Value.Year;
+            if (dateOfBirthPicker.Value > DateTime.Now.AddYears(-18))
+            {
+                MessageBox.Show("Врач должен быть старше 18 лет",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                dateOfBirthPicker.Focus();
+                return false;
+            }
+
+            if (experienceNumeric.Value > age - 18)
+            {
+                MessageBox.Show("Стаж работы не может быть больше возраста минус 18 лет",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                experienceNumeric.Focus();
+                return false;
+            }
+
+            // Валидация контактных данных
+            if (!string.IsNullOrWhiteSpace(phoneTextBox.Text))
+            {
+                string phonePattern = @"^\+?[1-9]\d{10}$";
+                if (!System.Text.RegularExpressions.Regex.IsMatch(phoneTextBox.Text, phonePattern))
+                {
+                    MessageBox.Show("Неверный формат номера телефона. Используйте формат +XXXXXXXXXXX",
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    phoneTextBox.Focus();
+                    return false;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(emailTextBox.Text))
+            {
+                string emailPattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+                if (!System.Text.RegularExpressions.Regex.IsMatch(emailTextBox.Text, emailPattern))
+                {
+                    MessageBox.Show("Неверный формат email адреса",
+                        "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    emailTextBox.Focus();
+                    return false;
+                }
+            }
+
+            // Валидация адреса
+            if (string.IsNullOrWhiteSpace(cityTextBox.Text))
+            {
+                MessageBox.Show("Введите город",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                cityTextBox.Focus();
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(streetTextBox.Text))
+            {
+                MessageBox.Show("Введите улицу",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                streetTextBox.Focus();
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(buildingTextBox.Text))
+            {
+                MessageBox.Show("Введите номер дома",
+                    "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                buildingTextBox.Focus();
                 return false;
             }
 

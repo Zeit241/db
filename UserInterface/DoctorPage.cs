@@ -29,10 +29,9 @@ namespace DatabaseCursovaya.UI
             this.FormBorderStyle = FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
 
-            // Проверяем авторизацию и роль
             if (!UserSession.Instance.IsAuthenticated || UserSession.Instance.Role != "doctor")
             {
-                MessageBox.Show("Доступ ��апрещен!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Доступ запрещен!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.Close();
                 return;
             }

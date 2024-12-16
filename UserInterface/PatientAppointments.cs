@@ -197,6 +197,14 @@ namespace DatabaseCursovaya.UI
             var grid = tabControl.TabPages[0].Controls.OfType<DataGridView>().FirstOrDefault();
             if (grid?.CurrentRow == null) return;
 
+            string status = grid.CurrentRow.Cells["Статус"].Value.ToString();
+            if (status != "Ожидается")
+            {
+                MessageBox.Show("Можно удалять только ожидающиеся приемы", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             if (MessageBox.Show(
                 "Вы действительно хотите удалить эту запись?",
                 "Подтверждение удаления",
@@ -209,12 +217,18 @@ namespace DatabaseCursovaya.UI
 
                 if (_dbManager.DeleteAppointment(_patientId, date, time))
                 {
-                    MessageBox.Show("Запись успешно удалена", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show("Запись успешно удалена", "Успех",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                     RefreshAppointments();
+
+                    // Обновляем список визитов в AdminDashboard, если он открыт
+                    var adminDashboard = Application.OpenForms.OfType<AdminDashboard>().FirstOrDefault();
+                    adminDashboard?.LoadDiagnoses();
                 }
                 else
                 {
-                    MessageBox.Show("Не удалось удалить запись", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Не удалось удалить запись", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }

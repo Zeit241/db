@@ -23,8 +23,6 @@ namespace WindowsFormsApp1
         private DataTable _originalPatientsData;
         private DataTable _originalDoctorsData;
 
-        private int _currentTab;
-
         public AdminDashboard()
         {
             InitializeComponent();
@@ -112,7 +110,7 @@ namespace WindowsFormsApp1
             // Привязываем обработчики
             addButton.Click += BtnCreate_Click;
             editButton.Click += BtnEdit_Click;
-            deleteButton.Click += BtnDelete_Click;
+            deleteButton.Click += BtnDeleteDoctor_Click;
             scheduleButton.Click += BtnSchedule_Click;
 
             // Добавляем кнопки на панель
@@ -158,7 +156,7 @@ namespace WindowsFormsApp1
                 Padding = new Padding(5)
             };
 
-            // Создаем и ��астраиваем кнопки
+            // Создаем и настраиваем кнопки
             Button addButton = new Button
             {
                 Text = "Добавить",
@@ -241,21 +239,12 @@ namespace WindowsFormsApp1
                 Padding = new Padding(5)
             };
 
-            // Создаем и настраиваем кнопки
-            Button detailsButton = new Button
-            {
-                Text = "Подробнее",
-                Width = 100,
-                Height = 30,
-                Location = new Point(5, 5)
-            };
-
             Button editButton = new Button
             {
                 Text = "Изменить",
                 Width = 100,
                 Height = 30,
-                Location = new Point(110, 5)
+                Location = new Point(5, 5)
             };
 
             Button deleteButton = new Button
@@ -263,20 +252,18 @@ namespace WindowsFormsApp1
                 Text = "Удалить",
                 Width = 100,
                 Height = 30,
-                Location = new Point(215, 5)
+                Location = new Point(110, 5)
             };
 
             // Привязываем обработчики
-            detailsButton.Click += BtnDiagnosisDetails_Click;
-            editButton.Click += BtnEditDiagnosis_Click;
+            editButton.Click += BtnDiagnosisDetails_Click;
             deleteButton.Click += BtnDeleteDiagnosis_Click;
 
             // Добавляем кнопки на панель
             diagnosesButtonPanel.Controls.AddRange(new Control[] {
-        detailsButton,
-        editButton,
-        deleteButton
-    });
+                editButton,
+                deleteButton
+            });
 
             // Настройка таблицы диагнозов
             _diagnosesGrid = new DataGridView
@@ -297,13 +284,20 @@ namespace WindowsFormsApp1
             LoadDiagnoses();
         }
 
-        private void LoadDiagnoses()
+        public void LoadDiagnoses()
         {
             _diagnosesGrid.DataSource = _dbManager.GetAllVisits();
-            // Настраиваем отображение столбцов
-            if (_patientsGrid.Columns.Count > 0)
-                _diagnosesGrid.Columns["diagnosis_id"].HeaderText = "ID";
+
+            if (_diagnosesGrid.Columns.Count > 0)
             {
+                // Настраиваем отображение столбцов
+                _diagnosesGrid.Columns["visit_id"].HeaderText = "ID";
+                _diagnosesGrid.Columns["Пациент"].HeaderText = "Пациент";
+                _diagnosesGrid.Columns["Врач"].HeaderText = "Врач";
+                _diagnosesGrid.Columns["Дата приема"].HeaderText = "Дата приема";
+                _diagnosesGrid.Columns["Время приема"].HeaderText = "Время приема";
+                _diagnosesGrid.Columns["Диагноз"].HeaderText = "Диагноз";
+                _diagnosesGrid.Columns["Статус"].HeaderText = "Статус";
             }
         }
 
@@ -321,6 +315,7 @@ namespace WindowsFormsApp1
 
             using (var detailsForm = new VisitDetailsForm(visitId))
             {
+                detailsForm.VisitUpdated += (s, args) => LoadDiagnoses();
                 detailsForm.ShowDialog();
             }
         }
@@ -350,29 +345,36 @@ namespace WindowsFormsApp1
         {
             if (_diagnosesGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите диагноз для удаления", "Предупреждение",
+                MessageBox.Show("Выберите визит для удаления", "Предупреждение",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             var row = _diagnosesGrid.SelectedRows[0];
-            int diagnosisId = Convert.ToInt32(row.Cells["diagnosis_id"].Value);
-            string diagnosisName = row.Cells["name"].Value.ToString();
+            string status = row.Cells["Статус"].Value.ToString();
 
-            if (MessageBox.Show($"Вы действительно хотите удалить диагноз '{diagnosisName}'?",
+            if (status != "Ожидается")
+            {
+                MessageBox.Show("Можно удалять только ожидающиеся приемы", "Предупреждение",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (MessageBox.Show("Вы действительно хотите удалить этот прием?",
                              "Подтверждение",
                              MessageBoxButtons.YesNo,
                              MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                if (_dbManager.DeleteVisit(diagnosisId))
+                int visitId = Convert.ToInt32(row.Cells["visit_id"].Value);
+                if (_dbManager.DeleteVisit(visitId))
                 {
-                    MessageBox.Show("Диагноз успешно удален", "Успех",
+                    MessageBox.Show("Прием успешно удален", "Успех",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadDiagnoses();
                 }
                 else
                 {
-                    MessageBox.Show("Ошибка при удалении диагноза", "Ошибка",
+                    MessageBox.Show("Ошибка при удалении приема", "Ошибка",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
@@ -380,10 +382,6 @@ namespace WindowsFormsApp1
 
         private void InitializeComponents()
         {
-            tabControl1.SelectedIndexChanged += (s, args) =>
-            {
-                this._currentTab = tabControl1.SelectedIndex;
-            };
 
             // Инициализация вкладок
             InitializeDoctorsTab(tabControl1.TabPages[0]);
@@ -421,41 +419,26 @@ namespace WindowsFormsApp1
             }
         }
 
-        private void SearchBox_TextChanged(object sender, EventArgs e, bool isDoctorsTab)
+        private void SearchBox_TextChanged(object sender, EventArgs e, bool isDoctors = false)
         {
-            string searchText = ((TextBox)sender).Text.ToLower();
+            var grid = isDoctors ? _doctorsGrid : _patientsGrid;
+            var searchBox = isDoctors ? _doctorsSearchBox : _patientsSearchBox;
+            string searchText = searchBox.Text.ToLower();
 
-            if (isDoctorsTab)
+            foreach (DataGridViewRow row in grid.Rows)
             {
-                if (string.IsNullOrWhiteSpace(searchText))
+                bool visible = false;
+                foreach (DataGridViewCell cell in row.Cells)
                 {
-                    _doctorsGrid.DataSource = _originalDoctorsData;
-                    return;
+                    if (cell.Value != null &&
+                        (cell.Value.ToString().ToLower().Contains(searchText) ||
+                        (isDoctors && row.Cells["Специальности"].Value?.ToString().ToLower().Contains(searchText) == true)))
+                    {
+                        visible = true;
+                        break;
+                    }
                 }
-
-                DataTable filteredTable = _originalDoctorsData.Clone();
-                foreach (DataRow row in _originalDoctorsData.Rows)
-                {
-                    if (RowContainsText(row, searchText))
-                        filteredTable.ImportRow(row);
-                }
-                _doctorsGrid.DataSource = filteredTable;
-            }
-            else
-            {
-                if (string.IsNullOrWhiteSpace(searchText))
-                {
-                    _patientsGrid.DataSource = _originalPatientsData;
-                    return;
-                }
-
-                DataTable filteredTable = _originalPatientsData.Clone();
-                foreach (DataRow row in _originalPatientsData.Rows)
-                {
-                    if (RowContainsText(row, searchText))
-                        filteredTable.ImportRow(row);
-                }
-                _patientsGrid.DataSource = filteredTable;
+                row.Visible = visible;
             }
         }
 
@@ -465,11 +448,12 @@ namespace WindowsFormsApp1
                 field != null && field.ToString().ToLower().Contains(searchText));
         }
 
-        private void BtnDelete_Click(object sender, EventArgs e)
+        private void BtnDeleteDoctor_Click(object sender, EventArgs e)
         {
             if (_doctorsGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите врача для удаления", "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Выберите врача для удаления",
+                    "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -477,20 +461,76 @@ namespace WindowsFormsApp1
             int doctorId = Convert.ToInt32(row.Cells["ID"].Value);
             string doctorName = $"{row.Cells["Фамилия"].Value} {row.Cells["Имя"].Value}";
 
-            if (MessageBox.Show($"Вы действительно хотите удалить врача {doctorName}?",
-                             "Подтверждение",
-                             MessageBoxButtons.YesNo,
-                             MessageBoxIcon.Question) == DialogResult.Yes)
+            // Проверяем наличие расписания и приемов
+            bool hasSchedule = _dbManager.HasDoctorSchedule(doctorId);
+            bool hasVisits = _dbManager.HasDoctorVisits(doctorId);
+
+            if (hasSchedule || hasVisits)
             {
-                if (_dbManager.DeleteDoctor(doctorId))
+                string message = "Внимание!\n\n";
+                if (hasSchedule)
+                    message += "- У врача есть расписание на будущие даты\n";
+                if (hasVisits)
+                    message += "- У врача есть записанные пациенты\n\n";
+                message += "При удалении врача:\n";
+                message += "- Будет удалено всё его расписание\n";
+                message += "- Информация о прошедших приемах сохранится\n\n";
+                message += "Вы действительно хотите удалить врача?";
+
+                var result = MessageBox.Show(
+                    message,
+                    "Подтверждение удаления",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                if (result == DialogResult.No)
+                    return;
+            }
+            else
+            {
+                var result = MessageBox.Show(
+                    $"Вы действительно хотите удалить врача {doctorName}?",
+                    "Подтверждение удаления",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result == DialogResult.No)
+                    return;
+            }
+
+            try
+            {
+                bool success = _dbManager.DeleteDoctor(doctorId);
+                if (success)
                 {
-                    MessageBox.Show("Врач успешно удален", "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LoadDoctors();
+                    MessageBox.Show(
+                        "Врач успешно удален",
+                        "Успех",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+                    LoadDoctors(); // Обновляем таблицу
                 }
                 else
                 {
-                    MessageBox.Show("Ошибка при удалении врача", "Ош��бка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(
+                        "Не удалось удалить врача",
+                        "Ошибка",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Ошибка при удалении врача: {ex.Message}",
+                    "Ошибка",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
             }
         }
 
@@ -658,7 +698,7 @@ namespace WindowsFormsApp1
         {
             if (_patientsGrid.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Выберите пациента для управления аккаунтом", "Предупреждени��",
+                MessageBox.Show("Выберите пациента для управления аккаунтом", "Предупреждение",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }

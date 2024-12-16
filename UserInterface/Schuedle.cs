@@ -37,10 +37,12 @@ namespace WindowsFormsApp1
             // Настр��йка DateTimePicker для времени начала
             startTimePicker.Format = DateTimePickerFormat.Time;
             startTimePicker.ShowUpDown = true;
+            startTimePicker.Value = DateTime.Today.AddHours(7);
 
             // Настройка DateTimePicker для времени окончания
             endTimePicker.Format = DateTimePickerFormat.Time;
             endTimePicker.ShowUpDown = true;
+            endTimePicker.Value = DateTime.Today.AddHours(17);
 
             // Настройка DataGridView
             scheduleGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
